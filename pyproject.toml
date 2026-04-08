@@ -1,0 +1,18 @@
+[project]
+name = "food-cop-openenv"
+version = "0.1.0"
+description = "AI food safety inspection environment using OpenEnv"
+authors = [
+    { name="Tejasv Sahu" }
+]
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "groq",
+    "openai"
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
