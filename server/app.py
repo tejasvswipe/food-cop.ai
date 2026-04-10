@@ -1,4 +1,3 @@
-from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import List, Optional
@@ -7,7 +6,18 @@ import os
 import uvicorn
 from dotenv import load_dotenv
 from pathlib import Path
+import uvicorn
+from fastapi import FastAPI
 
+app = FastAPI()
+
+# routes here...
+
+def main():
+    uvicorn.run(app, host="0.0.0.0", port=7860)
+
+if __name__ == "__main__":
+    main()
 load_dotenv(dotenv_path=Path(__file__).parent / ".env")
 
 # =========================
@@ -130,8 +140,9 @@ def calculate_reward(flagged: list, task_id: str, ai_dangerous: bool) -> float:
 # =========================
 # ROUTES
 # =========================
-@app.get("/", response_class=HTMLResponse)
+@app.get("/",)
 def home():
+    return {"status": "Food Cop AI is running!"}
     try:
         with open("index.html", "r") as f:
             return f.read()
@@ -212,5 +223,3 @@ Give a clear explanation in 2-3 lines."""
 def main():
     uvicorn.run(app, host="0.0.0.0", port=7860)
 
-if __name__ == "__main__":
-    main()
