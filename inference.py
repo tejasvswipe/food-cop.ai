@@ -13,7 +13,7 @@ import json
 # ─────────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────────
-BASE_URL    = "http://0.0.0.0:7860"
+BASE_URL    = os.getenv("env_URL","http://localhost:7860")
 STARTUP_TIMEOUT = 60   # seconds to wait for server boot
 POLL_INTERVAL   = 2    # seconds between health-check polls
 
