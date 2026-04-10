@@ -194,3 +194,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+    def main():
+        uvicorn.run(app, host="0.0.0.0.", port=7860)
