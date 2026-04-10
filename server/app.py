@@ -5,22 +5,9 @@ from typing import List, Optional
 from groq import Groq
 import os
 import uvicorn
-from dotenv import load_dotenv
-from pathlib import Path
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-import openenv
-from server import app
-import uvicorn
-
-def main():
-    uvicorn.run(app, host="0.0.0.0", port=7860)
-
-if __name__ == "__main__":
-    main()
-load_dotenv(dotenv_path=Path(__file__).parent / ".env")
 app = FastAPI(
     title="Food Cop AI",
     description="Indian food safety inspector using FSSAI and EFSA rules",
@@ -28,7 +15,8 @@ app = FastAPI(
     openapi_url="/openapi.json"
 )
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+# Initialize client robustly to prevent startup crashes if HF variable injection delays
+client = Groq(api_key=os.getenv("GROQ_API_KEY", "dummy_key_to_prevent_crash_at_startup"))
 
 class FoodAction(BaseModel):
     product_name: str
@@ -125,10 +113,13 @@ def home():
 def health():
     return {"status": "ok"}
 
+class ResetRequest(BaseModel):
+    task_id: Optional[str] = "task_easy"
+
 @app.post("/reset", response_model=ResetResponse)
-def reset(task_id: str = "task_easy"):
+def reset(req: ResetRequest = ResetRequest()):
     reset_state()
-    state["task_id"] = task_id
+    state["task_id"] = req.task_id
     obs = Observation(
         product_name="",
         ingredients=[],
@@ -137,7 +128,11 @@ def reset(task_id: str = "task_easy"):
         flagged_ingredients=[],
         ai_analysis="Ready for inspection"
     )
-    return ResetResponse(observation=obs, info={"task_id": task_id})
+    return ResetResponse(observation=obs, info={"task_id": req.task_id})
+
+@app.get("/state")
+def get_current_state():
+    return state
 
 @app.post("/step", response_model=StepResult)
 def step(action: FoodAction):
@@ -152,13 +147,16 @@ Flagged by database: {flagged}
 Analyze if this product is SAFE or UNSAFE. Start with YES if dangerous or NO if safe.
 Give a clear explanation in 2-3 lines."""
 
-    chat = client.chat.completions.create(
-        messages=[{"role": "user", "content": prompt}],
-        model="llama3-8b-8192"
-    )
-
-    ai_response = chat.choices[0].message.content
-    ai_dangerous = "YES" in ai_response.upper()
+    try:
+        chat = client.chat.completions.create(
+            messages=[{"role": "user", "content": prompt}],
+            model="llama3-8b-8192"
+        )
+        ai_response = chat.choices[0].message.content
+        ai_dangerous = "YES" in ai_response.upper()
+    except Exception as e:
+        ai_response = f"AI Error: {str(e)}"
+        ai_dangerous = True # Fall back to dangerous if AI is unreachable
     reward = calculate_reward(flagged, task_id, ai_dangerous)
     verdict = "UNSAFE ❌" if flagged or ai_dangerous else "SAFE ✅"
 
