@@ -1,4 +1,4 @@
-,<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -40,12 +40,24 @@
     .loader { text-align: center; padding: 2rem; color: #666; font-size: 14px; }
     .err { color: #993C1D; font-size: 13px; padding: 12px; background: #FAECE7; border-radius: 8px; }
     .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 20px; background: #E1F5EE; color: #0F6E56; margin-left: 8px; font-weight: 500; }
+    .status-bar { font-size: 12px; color: #888; margin-bottom: 1rem; display: flex; align-items: center; gap: 6px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; display: inline-block; }
+    .dot.green { background: #1D9E75; }
+    .dot.red { background: #993C1D; }
+    .dot.pulse { background: #f0a500; animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Food Cop AI <span class="badge">FSSAI + EFSA</span></h1>
     <p class="sub">Brutal Indian food safety inspector — paste your ingredients, get the truth</p>
+
+    <!-- API status indicator -->
+    <div class="status-bar">
+      <span class="dot pulse" id="status-dot"></span>
+      <span id="status-text">Connecting to server...</span>
+    </div>
 
     <div class="card">
       <label>Product name</label>
@@ -74,7 +86,38 @@
   <script>
     let ingredients = [];
     let taskId = 'task_easy';
-    const API = 'https://foodCop-food-cop_open-env.hf.space';
+
+    // ✅ FIX 1: Correct HF Space URL format (lowercase, underscores → hyphens)
+    const API = 'https://foodcop-food-cop-open-env.hf.space';
+
+    // ✅ FIX 2: Wake up the HF Space on page load (spaces go to sleep)
+    async function pingServer() {
+      const dot = document.getElementById('status-dot');
+      const txt = document.getElementById('status-text');
+      dot.className = 'dot pulse';
+      txt.textContent = 'Waking up server (may take 30s)...';
+
+      for (let i = 0; i < 10; i++) {
+        try {
+          const r = await fetch(`${API}/`, { method: 'GET', signal: AbortSignal.timeout(8000) });
+          if (r.ok || r.status === 404) { // 404 is fine — server is alive
+            dot.className = 'dot green';
+            txt.textContent = 'Server is online ✓';
+            return true;
+          }
+        } catch (e) {
+          // still waking up
+        }
+        await sleep(4000);
+        txt.textContent = `Waking up server... (attempt ${i + 2}/10)`;
+      }
+
+      dot.className = 'dot red';
+      txt.textContent = 'Server offline — HF Space may be down';
+      return false;
+    }
+
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
     function addIng() {
       const inp = document.getElementById('ing-input');
@@ -89,7 +132,7 @@
     function renderTags() {
       const c = document.getElementById('tags');
       c.innerHTML = ingredients.map((ing, i) =>
-        `<div class="tag">${ing} <span onclick="removeIng(${i})">x</span></div>`
+        `<div class="tag">${ing} <span onclick="removeIng(${i})">×</span></div>`
       ).join('');
     }
 
@@ -112,19 +155,39 @@
       const btn = document.getElementById('submit-btn');
       btn.disabled = true;
       btn.textContent = 'Analyzing...';
-      document.getElementById('result-area').innerHTML = '<div class="loader">Checking against FSSAI and EFSA database...</div>';
+      document.getElementById('result-area').innerHTML =
+        '<div class="loader">Checking against FSSAI and EFSA database...</div>';
 
       try {
+        // ✅ FIX 3: POST /reset first (required by the env), then /step
+        try {
+          await fetch(`${API}/reset`, { method: 'POST', signal: AbortSignal.timeout(10000) });
+        } catch (_) { /* reset failing is non-fatal */ }
+
         const res = await fetch(`${API}/step`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          // ✅ FIX 4: timeout so it doesn't hang forever
+          signal: AbortSignal.timeout(30000),
           body: JSON.stringify({ product_name: product, ingredients, task_id: taskId })
         });
+
+        if (!res.ok) {
+          throw new Error(`Server returned ${res.status}: ${res.statusText}`);
+        }
+
         const data = await res.json();
         renderResult(data);
+
       } catch (e) {
-        document.getElementById('result-area').innerHTML =
-          `<div class="err">Could not connect to API. Make sure HuggingFace Space is running at ${API}</div>`;
+        // ✅ FIX 5: Human-readable error messages
+        let msg = e.message || 'Unknown error';
+        if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+          msg = `Cannot reach the API at ${API}. Check that your HF Space is running.`;
+        } else if (msg.includes('timeout') || msg.includes('AbortError')) {
+          msg = 'Request timed out. The server is taking too long — try again in a few seconds.';
+        }
+        document.getElementById('result-area').innerHTML = `<div class="err">❌ ${msg}</div>`;
       }
 
       btn.disabled = false;
@@ -173,6 +236,9 @@
         </div>
       `;
     }
+
+    // Wake up the server as soon as page loads
+    pingServer();
   </script>
 </body>
 </html>

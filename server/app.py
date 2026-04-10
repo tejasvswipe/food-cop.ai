@@ -7,9 +7,20 @@ import os
 import uvicorn
 from dotenv import load_dotenv
 from pathlib import Path
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import openenv
+from server import app
+import uvicorn
+
+def main():
+    uvicorn.run(app, host="0.0.0.0", port=7860)
+
+if __name__ == "__main__":
+    main()
 load_dotenv(dotenv_path=Path(__file__).parent / ".env")
-
 app = FastAPI(
     title="Food Cop AI",
     description="Indian food safety inspector using FSSAI and EFSA rules",
@@ -138,7 +149,6 @@ def step(action: FoodAction):
 Product: {action.product_name}
 Ingredients: {', '.join(action.ingredients)}
 Flagged by database: {flagged}
-
 Analyze if this product is SAFE or UNSAFE. Start with YES if dangerous or NO if safe.
 Give a clear explanation in 2-3 lines."""
 

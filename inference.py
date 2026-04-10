@@ -1,24 +1,44 @@
 import os
+import time
 import requests
 from openai import OpenAI
-from dotenv import load_dotenv
-load_dotenv()
-# Required ENV variables
+
+# Required ENV variables (from HF Secrets)
 API_BASE_URL = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4.1-mini")
 HF_TOKEN = os.getenv("HF_TOKEN")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-if HF_TOKEN is None:
-    raise ValueError("HF_TOKEN environment variable is required")
+# Use whichever key is available
+api_key = GROQ_API_KEY or HF_TOKEN
+if not api_key:
+    raise ValueError("Either GROQ_API_KEY or HF_TOKEN must be set in HF Secrets")
 
-# OpenAI client (MANDATORY as per rules)
+# OpenAI client
 client = OpenAI(
     base_url=API_BASE_URL,
-    api_key=GROQ_API_KEY
+    api_key=api_key
 )
 
-# Your environment base URL (HF Space or local)
+# Environment base URL
 BASE_URL = os.getenv("ENV_URL", "http://localhost:7860")
+
+
+def wait_for_server(url, timeout=60, interval=3):
+    print(f"[INIT] Waiting for server at {url}...")
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            r = requests.get(url, timeout=5)
+            if r.status_code < 500:
+                print(f"[INIT] Server ready (status={r.status_code})")
+                return
+        except requests.exceptions.ConnectionError:
+            pass
+        except Exception as e:
+            print(f"[INIT] Check error: {e}")
+        time.sleep(interval)
+    raise RuntimeError(f"[INIT] Server at {url} not ready after {timeout}s")
 
 
 def run_task(task_name):
@@ -30,21 +50,22 @@ def run_task(task_name):
 
     try:
         # RESET
-        requests.post(f"{BASE_URL}/reset")
+        reset_resp = requests.post(f"{BASE_URL}/reset", timeout=15)
+        reset_resp.raise_for_status()
 
-        # STEP INPUT (sample test case)
+        # STEP
         action = "analyze_food"
         payload = {
             "product_name": "Test Snack",
             "ingredients": ["wheat", "E128", "salt"]
         }
 
-        response = requests.post(f"{BASE_URL}/step", json=payload)
+        response = requests.post(f"{BASE_URL}/step", json=payload, timeout=15)
+        response.raise_for_status()
         result = response.json()
 
         step_count += 1
 
-        # Reward logic (simple baseline)
         if "DANGEROUS" in str(result):
             reward = 1.0
             success = True
@@ -52,19 +73,18 @@ def run_task(task_name):
             reward = 0.0
 
         rewards.append(f"{reward:.2f}")
-
         print(f"[STEP] step={step_count} action={action} reward={reward:.2f} done=true error=null")
 
     except Exception as e:
         print(f"[STEP] step={step_count} action=error reward=0.00 done=true error={str(e)}")
 
-    # END (MANDATORY)
     rewards_str = ",".join(rewards) if rewards else "0.00"
     print(f"[END] success={str(success).lower()} steps={step_count} rewards={rewards_str}")
 
 
 if __name__ == "__main__":
-    # Run all 3 tasks (required)
+    wait_for_server(BASE_URL)
+
     run_task("task_easy")
     run_task("task_medium")
     run_task("task_hard")
