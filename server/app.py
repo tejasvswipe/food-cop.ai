@@ -5,35 +5,28 @@ from typing import List, Optional
 from groq import Groq
 import os
 import uvicorn
-from dotenv import load_dotenv
-from pathlib import Path
 
-load_dotenv(dotenv_path=Path(__file__).parent / ".env")
-from fastapi import FastAPI
-import uvicorn
-
-app = FastAPI()
-
-# your routes here...
-
-def main():
-    uvicorn.run(app, host="0.0.0.0", port=7860)
-
-if __name__ == "__main__":
-    main()
+# =========================
+# APP INIT (ONLY ONCE)
+# =========================
 app = FastAPI(
     title="Food Cop AI",
     description="Indian food safety inspector using FSSAI and EFSA rules",
-    version="1.0.0",
-    openapi_url="/openapi.json"
+    version="1.0.0"
 )
 
+# =========================
+# ENV SETUP
+# =========================
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-if not GROQ_API_KEY:
-    raise RuntimeError("GROQ_API_KEY must be set in the environment or in server/.env")
 
-client = Groq(api_key=GROQ_API_KEY)
+client = None
+if GROQ_API_KEY:
+    client = Groq(api_key=GROQ_API_KEY)
 
+# =========================
+# MODELS
+# =========================
 class FoodAction(BaseModel):
     product_name: str
     ingredients: List[str]
@@ -57,118 +50,80 @@ class ResetResponse(BaseModel):
     observation: Observation
     info: dict
 
+# =========================
+# DATA
+# =========================
 BANNED_INGREDIENTS = {
-    "E128": "Red 2G - banned food dye, linked to cancer (FSSAI+EFSA)",
-    "E216": "Propyl p-hydroxybenzoate - banned preservative (FSSAI)",
-    "E217": "Sodium propyl p-hydroxybenzoate - banned preservative (FSSAI)",
-    "E240": "Formaldehyde - banned preservative, toxic (FSSAI+EFSA)",
-    "TBHQ": "Tertiary butylhydroquinone - toxic at high doses (EFSA)",
-    "E211": "Sodium benzoate - forms benzene carcinogen (EFSA)",
-    "E951": "Aspartame - banned in some countries (EFSA)",
-    "E621": "MSG - causes reactions in sensitive people (FSSAI)",
-    "partially hydrogenated oil": "Trans fat - banned by FDA",
-    "potassium bromate": "Banned in EU and India (FSSAI+EFSA)",
-    "sudan red": "Illegal dye, toxic (FSSAI+EFSA)",
-    "rhodamine b": "Illegal synthetic dye (FSSAI)",
+    "E128": "Red 2G banned dye",
+    "E216": "Banned preservative",
+    "E217": "Banned preservative",
+    "E240": "Toxic formaldehyde"
 }
 
-state = {"step": 0, "product_name": None, "ingredients": [], "done": False, "task_id": "task_easy"}
+state = {"step": 0, "task_id": "task_easy"}
 
-def reset_state():
-    state["step"] = 0
-    state["product_name"] = None
-    state["ingredients"] = []
-    state["done"] = False
-
-def check_ingredients(ingredients: List[str]):
+# =========================
+# HELPERS
+# =========================
+def check_ingredients(ingredients):
     flagged = []
     for ing in ingredients:
-        for banned_key, reason in BANNED_INGREDIENTS.items():
-            if banned_key.lower() in ing.lower():
-                flagged.append(f"{ing}: {reason}")
+        for banned in BANNED_INGREDIENTS:
+            if banned.lower() in ing.lower():
+                flagged.append(ing)
     return flagged
 
-def calculate_reward(flagged: list, task_id: str, ai_dangerous: bool) -> float:
-    if task_id == "task_easy":
-        if len(flagged) >= 1:
-            return 1.0
-        if ai_dangerous:
-            return 0.5
-        return 0.0
-    elif task_id == "task_medium":
-        score = 0.0
-        if len(flagged) >= 1:
-            score += 0.5
-        if len(flagged) >= 2:
-            score += 0.3
-        if ai_dangerous:
-            score += 0.2
-        return min(score, 1.0)
-    elif task_id == "task_hard":
-        score = 0.0
-        if len(flagged) >= 1:
-            score += 0.3
-        if len(flagged) >= 2:
-            score += 0.3
-        if len(flagged) >= 3:
-            score += 0.2
-        if ai_dangerous:
-            score += 0.2
-        return min(score, 1.0)
-    return 0.0
-
-@app.get("/", response_class=HTMLResponse)
+# =========================
+# ROUTES
+# =========================
+@app.get("/")
 def home():
-    try:
-        with open("index.html", "r") as f:
-            return f.read()
-    except:
-        return "<h1>Food Cop AI is running!</h1>"
+    return {"status": "API running"}
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
-@app.get("/state")
-def get_state():
-    return state
-
 @app.post("/reset", response_model=ResetResponse)
 def reset(task_id: str = "task_easy"):
-    reset_state()
+    state["step"] = 0
     state["task_id"] = task_id
+
     obs = Observation(
         product_name="",
         ingredients=[],
         step=0,
-        verdict="RESET",
-        flagged_ingredients=[],
-        ai_analysis="Ready for inspection"
+        verdict="RESET"
     )
     return ResetResponse(observation=obs, info={"task_id": task_id})
 
 @app.post("/step", response_model=StepResult)
 def step(action: FoodAction):
     state["step"] += 1
-    task_id = action.task_id or state.get("task_id", "task_easy")
+
     flagged = check_ingredients(action.ingredients)
 
-    prompt = f"""You are a strict Indian food safety expert using FSSAI and EFSA guidelines.
-Product: {action.product_name}
-Ingredients: {', '.join(action.ingredients)}
-Flagged by database: {flagged}
-Analyze if this product is SAFE or UNSAFE. Start with YES if dangerous or NO if safe.
-Give a clear explanation in 2-3 lines."""
+    # AI optional (safe fallback)
+    ai_response = "No AI analysis"
+    ai_dangerous = False
 
-    chat = client.chat.completions.create(
-        messages=[{"role": "user", "content": prompt}],
-        model="llama3-8b-8192"
-    )
+    if client:
+        try:
+            chat = client.chat.completions.create(
+                messages=[{"role": "user", "content": f"Is this dangerous? {action.ingredients}"}],
+                model="llama3-8b-8192"
+            )
+            ai_response = chat.choices[0].message.content
+            ai_dangerous = "YES" in ai_response.upper()
+        except:
+            pass
 
-    ai_response = chat.choices[0].message.content
-    ai_dangerous = "YES" in ai_response.upper()
-    reward = calculate_reward(flagged, task_id, ai_dangerous)
-    verdict = "UNSAFE ❌" if flagged or ai_dangerous else "SAFE ✅"
+    if flagged or ai_dangerous:
+        reward = 1.0
+        verdict = "DANGEROUS"
+    else:
+        reward = 0.0
+        verdict = "SAFE"
 
     obs = Observation(
         product_name=action.product_name,
@@ -179,7 +134,18 @@ Give a clear explanation in 2-3 lines."""
         ai_analysis=ai_response
     )
 
-    return StepResult(observation=obs, reward=reward, done=True, info={"task_id": task_id})
+    return StepResult(
+        observation=obs,
+        reward=reward,
+        done=True,
+        info={}
+    )
+
+# =========================
+# MAIN ENTRY (IMPORTANT)
+# =========================
+def main():
+    uvicorn.run(app, host="0.0.0.0", port=7860)
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=7860, reload=True)
+    main()
