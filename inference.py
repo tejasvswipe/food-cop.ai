@@ -9,7 +9,12 @@ MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4.1-mini")
 HF_TOKEN = os.getenv("HF_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-api_key = GROQ_API_KEY or HF_TOKEN
+api_key = GROQ_API_KEY or HF_TOKEN or "dummy-key"
+
+client = OpenAI(
+    base_url=API_BASE_URL,
+    api_key=api_key
+)
 
 # OpenAI client (required)
 client = OpenAI(

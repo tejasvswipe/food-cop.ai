@@ -49,7 +49,7 @@ class ResetResponse(BaseModel):
 # =========================
 # DATA
 # =========================
-BANNED_INGREDIENTS = {
+BANNED_INGREDIENTS ={
     "E128": "Banned food dye (carcinogenic)",
     "E216": "Banned preservative","E128": "Red 2G - banned food dye, linked to cancer (FSSAI+EFSA)",
     "E216": "Propyl p-hydroxybenzoate - banned preservative (FSSAI)",
@@ -63,9 +63,8 @@ BANNED_INGREDIENTS = {
     "potassium bromate": "Banned in EU and India (FSSAI+EFSA)",
     "sudan red": "Illegal dye, toxic (FSSAI+EFSA)",
     "rhodamine b": "Illegal synthetic dye (FSSAI)",
-    ,
-}
 
+}
 state = {
     "step": 0,
     "task_id": "task_easy"
