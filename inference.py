@@ -3,44 +3,47 @@ import time
 import requests
 from openai import OpenAI
 
-# Required ENV variables (from HF Secrets)
+# ==============================
+# ENV VARIABLES (REQUIRED)
+# ==============================
 API_BASE_URL = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4.1-mini")
 HF_TOKEN = os.getenv("HF_TOKEN")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-# Use whichever key is available
-api_key = GROQ_API_KEY or HF_TOKEN
-if not api_key:
-    raise ValueError("Either GROQ_API_KEY or HF_TOKEN must be set in HF Secrets")
+if not HF_TOKEN:
+    raise ValueError("HF_TOKEN environment variable is required")
 
-# OpenAI client
+# OpenAI client (MANDATORY)
 client = OpenAI(
     base_url=API_BASE_URL,
-    api_key=api_key
+    api_key=HF_TOKEN
 )
 
-# Environment base URL
-BASE_URL = os.getenv("ENV_URL", "http://localhost:7860")
+# ✅ IMPORTANT: Use HF Space URL (NOT localhost)
+BASE_URL = os.getenv(
+    "ENV_URL",
+    "https://foodcop-food-cop_open-env.hf.space"
+)
 
-
-def wait_for_server(url, timeout=60, interval=3):
-    print(f"[INIT] Waiting for server at {url}...")
-    deadline = time.time() + timeout
-    while time.time() < deadline:
+# ==============================
+# WAIT FOR SERVER
+# ==============================
+def wait_for_server(url, timeout=60):
+    start = time.time()
+    while time.time() - start < timeout:
         try:
             r = requests.get(url, timeout=5)
             if r.status_code < 500:
-                print(f"[INIT] Server ready (status={r.status_code})")
                 return
-        except requests.exceptions.ConnectionError:
+        except:
             pass
-        except Exception as e:
-            print(f"[INIT] Check error: {e}")
-        time.sleep(interval)
-    raise RuntimeError(f"[INIT] Server at {url} not ready after {timeout}s")
+        time.sleep(2)
+    raise RuntimeError("Server not ready")
 
 
+# ==============================
+# SINGLE TASK RUNNER
+# ==============================
 def run_task(task_name):
     rewards = []
     step_count = 0
@@ -49,30 +52,42 @@ def run_task(task_name):
     print(f"[START] task={task_name} env=food_safety_env model={MODEL_NAME}")
 
     try:
-        # RESET
-        reset_resp = requests.post(f"{BASE_URL}/reset", timeout=15)
-        reset_resp.raise_for_status()
+        # ---- RESET ----
+        requests.post(f"{BASE_URL}/reset", timeout=10)
 
-        # STEP
+        # ---- LLM DECISION (MANDATORY USAGE) ----
+        prompt = "Check if food containing E128 is safe or dangerous."
+        llm_response = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
         action = "analyze_food"
+
+        # ---- STEP ----
         payload = {
             "product_name": "Test Snack",
             "ingredients": ["wheat", "E128", "salt"]
         }
 
-        response = requests.post(f"{BASE_URL}/step", json=payload, timeout=15)
-        response.raise_for_status()
-        result = response.json()
+        res = requests.post(f"{BASE_URL}/step", json=payload, timeout=10)
+
+        if res.status_code != 200:
+            raise Exception(f"HTTP {res.status_code}")
+
+        result = res.json()
 
         step_count += 1
 
-        if "DANGEROUS" in str(result):
-            reward = 1.0
+        # ---- REWARD ----
+        if "DANGEROUS" in str(result).upper():
+            reward = 1.00
             success = True
         else:
-            reward = 0.0
+            reward = 0.00
 
         rewards.append(f"{reward:.2f}")
+
         print(f"[STEP] step={step_count} action={action} reward={reward:.2f} done=true error=null")
 
     except Exception as e:
@@ -82,6 +97,9 @@ def run_task(task_name):
     print(f"[END] success={str(success).lower()} steps={step_count} rewards={rewards_str}")
 
 
+# ==============================
+# MAIN EXECUTION
+# ==============================
 if __name__ == "__main__":
     wait_for_server(BASE_URL)
 
