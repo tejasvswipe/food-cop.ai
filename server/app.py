@@ -5,22 +5,11 @@ from typing import List, Optional
 from groq import Groq
 import os
 import uvicorn
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv
 from pathlib import Path
-import openenv
-from server import app
-import uvicorn
 
-
-def main():
-    uvicorn.run(app, host="0.0.0.0", port=7860)
-
-if __name__ == "__main__":
-    main()
 load_dotenv(dotenv_path=Path(__file__).parent / ".env")
+
 app = FastAPI(
     title="Food Cop AI",
     description="Indian food safety inspector using FSSAI and EFSA rules",
@@ -28,7 +17,11 @@ app = FastAPI(
     openapi_url="/openapi.json"
 )
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+if not GROQ_API_KEY:
+    raise RuntimeError("GROQ_API_KEY must be set in the environment or in server/.env")
+
+client = Groq(api_key=GROQ_API_KEY)
 
 class FoodAction(BaseModel):
     product_name: str
@@ -125,6 +118,10 @@ def home():
 def health():
     return {"status": "ok"}
 
+@app.get("/state")
+def get_state():
+    return state
+
 @app.post("/reset", response_model=ResetResponse)
 def reset(task_id: str = "task_easy"):
     reset_state()
@@ -174,5 +171,4 @@ Give a clear explanation in 2-3 lines."""
     return StepResult(observation=obs, reward=reward, done=True, info={"task_id": task_id})
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=7860)
+    uvicorn.run(app, host="0.0.0.0", port=7860, reload=True)
