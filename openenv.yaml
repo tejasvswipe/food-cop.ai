@@ -15,21 +15,21 @@ tasks:
   - name: food_check_easy
     difficulty: easy
     description: Detect a single clearly banned ingredient (E128) in a candy bar.
-    reward_range: [0.0, 2.0]
+    reward_range: [0.05, 0.95]   # ✅ 1.0 nahi
 
   - name: food_check_medium
     difficulty: medium
     description: >
       Detect sodium benzoate (E211) in an energy drink — dangerous when
       combined with vitamin C forming benzene.
-    reward_range: [0.0, 2.0]
+    reward_range: [0.05, 0.95]   # ✅ 1.0 nahi
 
   - name: food_check_hard
     difficulty: hard
     description: >
       Detect multiple dangerous additives (E621, E951, TBHQ, trans fats, E128)
       in a processed snack across FSSAI and EFSA banned lists.
-    reward_range: [0.0, 2.0]
+    reward_range: [0.05, 0.95]   # ✅ 1.0 nahi
 
 observation_space:
   type: object
@@ -37,7 +37,7 @@ observation_space:
     - product_name: string
     - ingredients: list[string]
     - step: integer
-    - verdict: string  # SAFE or DANGEROUS
+    - verdict: string
     - flagged_ingredients: list[string]
 
 action_space:
@@ -47,9 +47,9 @@ action_space:
     - ingredients: list[string]
 
 reward_function: >
-  +1.0 for correctly identifying a dangerous ingredient in step 1 (LLM analysis).
-  +1.0 for correctly flagging product as UNSAFE in step 2 (LLM verification).
-  0.0 if agent misses dangerous ingredients.
+  0.95 for correctly identifying a dangerous ingredient in step 1 (LLM analysis).
+  0.95 for correctly flagging product as UNSAFE in step 2 (LLM verification).
+  0.05 if agent misses dangerous ingredients.    # ✅ 0.0 nahi
 
 endpoints:
   - GET  /health   - Health check

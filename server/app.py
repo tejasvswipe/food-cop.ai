@@ -106,24 +106,24 @@ def calculate_reward(flagged: list, task_id: str, ai_dangerous: bool) -> float:
     if task_id == "task_easy":
         if len(flagged) >= 1: return 0.95      # ← 1.0 nahi
         if ai_dangerous: return 0.75
-        return 0.05                              # ← 0.0 nahi
+        return 0.2                              # ← 0.0 nahi
 
     elif task_id == "task_medium":
-        score = 0.05                             # ← 0.0 nahi
+        score = 0.1                             # ← 0.0 nahi
         if len(flagged) >= 1: score += 0.40
         if len(flagged) >= 2: score += 0.25
         if ai_dangerous: score += 0.15
         return min(score, 0.95)                  # ← 1.0 nahi
 
     elif task_id == "task_hard":
-        score = 0.05                             # ← 0.0 nahi
-        if len(flagged) >= 1: score += 0.25
-        if len(flagged) >= 2: score += 0.25
-        if len(flagged) >= 3: score += 0.20
-        if ai_dangerous: score += 0.15
+        score = 0.1                            # ← 0.0 nahi
+        if len(flagged) >= 1: score += 0.30
+        if len(flagged) >= 2: score += 0.30
+        if len(flagged) >= 3: score += 0.27
+        if ai_dangerous: score += 0.25
         return min(score, 0.95)                  # ← 1.0 nahi
 
-    return 0.05                                  # ← 0.0 nahi
+    return 0.1                                  # ← 0.0 nahi
 
 # =========================
 # ROUTES — app define hone ke BAAD
