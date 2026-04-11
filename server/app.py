@@ -201,4 +201,5 @@ Give a clear explanation in 2-3 lines."""
 # MAIN — sabse neeche, sirf ek baar
 # =========================
 if __name__ == "__main__":
+    main:()
     uvicorn.run(app, host="0.0.0.0", port=7860)
