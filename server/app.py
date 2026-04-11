@@ -1,4 +1,6 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from openai import OpenAI
@@ -6,6 +8,8 @@ import os
 import uvicorn
 from dotenv import load_dotenv
 from pathlib import Path
+
+from server.reward_core import calculate_reward, check_ingredients, clamp_reward_strict
 
 load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
 
@@ -17,7 +21,23 @@ client = None
 if API_BASE_URL and HF_TOKEN:
     client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
 
-app = FastAPI(title="Food Cop AI", version="1.0.1")
+app = FastAPI(title="Food Cop AI", version="1.0.2")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+_STATIC_DIR = Path(__file__).resolve().parent / "static"
+if _STATIC_DIR.is_dir():
+    app.mount(
+        "/ui",
+        StaticFiles(directory=str(_STATIC_DIR), html=True),
+        name="ui",
+    )
 
 class FoodAction(BaseModel):
     product_name: str
@@ -42,21 +62,6 @@ class ResetResponse(BaseModel):
     observation: Observation
     info: Dict[str, Any]
 
-BANNED_INGREDIENTS = {
-    "E128": "Red 2G - banned food dye (FSSAI+EFSA)",
-    "E216": "Propyl p-hydroxybenzoate - banned (FSSAI)",
-    "E217": "Sodium propyl p-hydroxybenzoate - banned (FSSAI)",
-    "E240": "Formaldehyde - toxic (FSSAI+EFSA)",
-    "TBHQ": "Tertiary butylhydroquinone - toxic (EFSA)",
-    "E211": "Sodium benzoate - carcinogen (EFSA)",
-    "E951": "Aspartame - banned in some countries (EFSA)",
-    "E621": "MSG - causes reactions (FSSAI)",
-    "partially hydrogenated oil": "Trans fat - banned by FDA",
-    "potassium bromate": "Banned in EU and India (FSSAI+EFSA)",
-    "sudan red": "Illegal dye (FSSAI+EFSA)",
-    "rhodamine b": "Illegal synthetic dye (FSSAI)",
-}
-
 DEFAULT_TASK_ID = "food_check_easy"
 
 state = {
@@ -74,84 +79,13 @@ def reset_state():
     state["done"] = False
     state["task_id"] = DEFAULT_TASK_ID
 
-def sanitize_score(x) -> float:
-    try:
-        if isinstance(x, bool):
-            x = 1.0 if x else 0.0
-        x = float(x)
-    except Exception:
-        x = 0.5
-    return min(0.99, max(0.01, x))
-
-def check_ingredients(ingredients: List[str]) -> List[str]:
-    flagged = []
-    for ing in ingredients:
-        ing_low = ing.lower()
-        for banned_key, reason in BANNED_INGREDIENTS.items():
-            if banned_key.lower() in ing_low:
-                flagged.append(f"{ing}: {reason}")
-                break
-    return flagged
-
-def calculate_reward(flagged, task_id, ai_dangerous):
-
-    base = 0.42
-
-    # Always safe fallback (important for unseen tasks)
-    if task_id not in ("food_check_easy", "food_check_medium", "food_check_hard"):
-        return 0.50
-
-    severity = len(flagged)
-
-    # -------------------------
-    # EASY: binary clarity task
-    # -------------------------
-    if task_id == "food_check_easy":
-        if severity >= 1:
-            return 0.66
-        return 0.44
-
-    # -------------------------
-    # MEDIUM: graded detection
-    # -------------------------
-    if task_id == "food_check_medium":
-        score = base
-
-        if severity >= 1:
-            score += 0.10
-        if severity >= 2:
-            score += 0.07
-
-        if ai_dangerous:
-            score += 0.05
-
-        # keep clean mid-range separation
-        return min(0.68, max(0.40, score))
-
-    # -------------------------
-    # HARD: multi-signal task
-    # -------------------------
-    if task_id == "food_check_hard":
-        score = 0.48  # higher baseline for difficulty
-
-        if severity >= 1:
-            score += 0.06
-        if severity >= 2:
-            score += 0.06
-        if severity >= 3:
-            score += 0.08
-
-        if ai_dangerous:
-            score += 0.04
-
-        # allow higher ceiling for hard
-        return min(0.72, max(0.50, score))
-
-    return 0.50
-
 @app.get("/")
 def home():
-    return {"status": "Food Cop AI is running!", "model": MODEL_NAME}
+    return {
+        "status": "Food Cop AI is running!",
+        "model": MODEL_NAME,
+        "ui": "/ui/",
+    }
 
 @app.get("/health")
 def health():
@@ -190,7 +124,6 @@ def step(action: FoodAction):
     ai_response = "No AI analysis"
     ai_dangerous = False
 
-    # SAFE LLM CALL (optional)
     if client is not None:
         try:
             prompt = f"""You are a strict Indian food safety expert using FSSAI and EFSA guidelines.
@@ -212,11 +145,8 @@ Answer SAFE or DANGEROUS."""
             ai_response = f"AI error: {str(e)}"
             ai_dangerous = False
 
-    # IMPORTANT: compute reward FIRST
     raw_reward = calculate_reward(flagged, task_id, ai_dangerous)
-
-    # SAFE CLAMP LAST (NEVER BEFORE ASSIGNMENT)
-    reward = float(max(0.01, min(0.99, raw_reward)))
+    reward = clamp_reward_strict(raw_reward)
 
     verdict = "DANGEROUS" if (flagged or ai_dangerous) else "SAFE"
 

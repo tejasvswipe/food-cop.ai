@@ -17,7 +17,8 @@ def clamp_reward(x: float) -> float:
         x = float(x)
     except Exception:
         x = 0.5
-    return min(0.99, max(0.01, x))
+    # Match server.reward_core: strictly inside (0, 1)
+    return min(1.0 - 1e-4, max(1e-4, x))
 
 
 if not HF_TOKEN:

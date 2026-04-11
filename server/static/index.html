@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Food Cop — label check</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/ui/css/style.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <h1>Food Cop</h1>
+        <p>FSSAI / EFSA-oriented ingredient check — manual entry or OCR from a label photo</p>
+      </header>
+
+      <section class="card">
+        <h2>Product</h2>
+        <div class="field">
+          <label for="product-name">Product name</label>
+          <input
+            id="product-name"
+            type="text"
+            placeholder="e.g. Masala chips, Energy drink"
+            autocomplete="off"
+          />
+        </div>
+        <div class="field">
+          <label for="task-id">Check profile</label>
+          <select id="task-id">
+            <option value="food_check_easy">Easy — single clear risk</option>
+            <option value="food_check_medium">Medium — drink / several additives</option>
+            <option value="food_check_hard">Hard — snack / multiple signals</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Ingredients</h2>
+        <div class="field">
+          <label for="ingredients">Ingredient list</label>
+          <textarea
+            id="ingredients"
+            placeholder="One per line, or comma-separated — e.g.&#10;Wheat flour&#10;Palm oil&#10;E621&#10;Salt"
+          ></textarea>
+          <p class="hint">
+            OCR appends recognized text below; split lines or commas become separate ingredients.
+          </p>
+        </div>
+        <div class="row">
+          <input id="file-input" type="file" accept="image/*" capture="environment" />
+          <button type="button" class="btn btn-secondary" id="btn-ocr">
+            Scan label (OCR)
+          </button>
+          <button type="button" class="btn btn-primary" id="btn-check">Run check</button>
+        </div>
+        <p class="status" id="ocr-status"></p>
+        <p class="status" id="form-status"></p>
+      </section>
+
+      <section class="card results" id="results">
+        <h2>Result</h2>
+        <div id="verdict" class="verdict"></div>
+        <div class="block" id="flagged-block" style="display: none">
+          <h3>Flagged</h3>
+          <ul class="flags" id="flagged-list"></ul>
+        </div>
+        <div class="block" id="ai-block">
+          <h3>AI analysis</h3>
+          <div class="ai-text" id="ai-text"></div>
+        </div>
+        <p class="meta" id="meta"></p>
+      </section>
+
+      <footer>
+        API: <code>/step</code> · JSON status: <a href="/">GET /</a>
+      </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="/ui/js/app.js"></script>
+  </body>
+</html>

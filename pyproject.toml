@@ -11,7 +11,9 @@ dependencies = [
     "pydantic",
     "groq",
     "openai",
-    "openenv-core>=0.2.0"
+    "requests",
+    "python-dotenv",
+    "openenv-core>=0.2.0",
 ]
 [project.scripts]
 server = "server.app:main"
