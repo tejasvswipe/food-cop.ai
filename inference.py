@@ -6,19 +6,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# ✅ Hackathon environment variables
 API_BASE_URL = os.getenv("API_BASE_URL", "https://api.groq.com/openai/v1")
-MODEL_NAME   = os.getenv("MODEL_NAME", "llama3-8b-8192")
+MODEL_NAME   = os.getenv("MODEL_NAME", "llama-3.3-70b-versatile")
 HF_TOKEN     = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY") or os.getenv("GROQ_API_KEY")
 
-# ✅ Crash nahi karega agar key missing hai
 if not HF_TOKEN:
     print("[WARN] No API key found — ai calls will be skipped")
 
 try:
     client = OpenAI(
         base_url=API_BASE_URL,
-        api_key=HF_TOKEN or "dummy-key"  # ✅ dummy so it doesn't crash
+        api_key=HF_TOKEN or "dummy-key"
     )
 except Exception as e:
     print(f"[WARN] Client init failed: {e}")
@@ -98,11 +96,12 @@ def run_task(task_name):
         )
         print(f"[LLM] {llm_reply[:100]}")
 
+        # ✅ Reward strictly between 0 and 1
         if "DANGEROUS" in verdict or (llm_reply and llm_reply.upper().startswith("YES")):
-            reward = 1.0
+            reward = 0.95
             success = True
         else:
-            reward = 0.5
+            reward = 0.55
 
         rewards.append(f"{reward:.2f}")
         print(f"[STEP] step={step_count} action=analyze_food reward={reward:.2f} done=true error=null")
