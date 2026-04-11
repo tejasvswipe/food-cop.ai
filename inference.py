@@ -6,12 +6,7 @@ from openai import OpenAI
 # ✅ Hackathon proxy — MUST use these
 API_BASE_URL = os.getenv("BASE_URL")          # hackathon proxy URL
 MODEL_NAME   = os.getenv("MODEL_NAME")
-HF_TOKEN     = os.getenv("GROQ_API_KEY")              # hackathon proxy key
-
-if not API_BASE_URL:
-    raise ValueError("API_BASE_URL is not set in HF Secrets")
-if not HF_TOKEN:
-    raise ValueError("HF_TOKEN is not set in HF Secrets")
+HF_TOKEN     = os.getenv("OPENAI_API_KEY")              # hackathon proxy key
 
 # ✅ Route through THEIR proxy
 client = OpenAI(

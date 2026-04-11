@@ -11,7 +11,7 @@ import uvicorn
 # =========================
 API_BASE_URL = os.getenv("BASE_URL")          # hackathon proxy URL
 MODEL_NAME   = os.getenv("MODEL_NAME")
-HF_TOKEN     = os.getenv("GROQ_API_KEY")              # hackathon proxy key
+HF_TOKEN     = os.getenv("OPENAI_API_KEY")              # hackathon proxy key
 
 # ✅ LiteLLM proxy through OpenAI client
 client = None
