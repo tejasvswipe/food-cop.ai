@@ -1,45 +1,28 @@
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import List, Optional
 from openai import OpenAI
 import os
 import uvicorn
 from dotenv import load_dotenv
-from dotenv import load_dotenv
 from pathlib import Path
 
-# ✅ Root folder ka .env dhundega chahe server/ se run ho
 load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
 
-
 API_BASE_URL = os.getenv("API_BASE_URL")
-MODEL_NAME   = os.getenv("MODEL_NAME", "llama3-8b-8192")
+MODEL_NAME   = os.getenv("MODEL_NAME", "llama-3.3-70b-versatile")
 HF_TOKEN     = os.getenv("HF_TOKEN")
 
 client = None
 if API_BASE_URL and HF_TOKEN:
-    client = OpenAI(
-        base_url=API_BASE_URL,
-        api_key=HF_TOKEN
-    )
+    client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
 
-# =========================
-# APP INIT — sirf ek baar
-# =========================
-app = FastAPI(
-    title="Food Cop AI",
-    description="Indian food safety inspector using FSSAI and EFSA rules",
-    version="1.0.0"
-)
+app = FastAPI(title="Food Cop AI", version="1.0.0")
 
-# =========================
-# MODELS
-# =========================
 class FoodAction(BaseModel):
     product_name: str
     ingredients: List[str]
-    task_id: Optional[str] = "task_easy"
+    task_id: Optional[str] = "food_check_easy"
 
 class Observation(BaseModel):
     product_name: str
@@ -59,35 +42,23 @@ class ResetResponse(BaseModel):
     observation: Observation
     info: dict
 
-# =========================
-# DATA
-# =========================
 BANNED_INGREDIENTS = {
-    "E128": "Red 2G - banned food dye, linked to cancer (FSSAI+EFSA)",
-    "E216": "Propyl p-hydroxybenzoate - banned preservative (FSSAI)",
-    "E217": "Sodium propyl p-hydroxybenzoate - banned preservative (FSSAI)",
-    "E240": "Formaldehyde - banned preservative, toxic (FSSAI+EFSA)",
-    "TBHQ": "Tertiary butylhydroquinone - toxic at high doses (EFSA)",
-    "E211": "Sodium benzoate - forms benzene carcinogen (EFSA)",
+    "E128": "Red 2G - banned food dye (FSSAI+EFSA)",
+    "E216": "Propyl p-hydroxybenzoate - banned (FSSAI)",
+    "E217": "Sodium propyl p-hydroxybenzoate - banned (FSSAI)",
+    "E240": "Formaldehyde - toxic (FSSAI+EFSA)",
+    "TBHQ": "Tertiary butylhydroquinone - toxic (EFSA)",
+    "E211": "Sodium benzoate - carcinogen (EFSA)",
     "E951": "Aspartame - banned in some countries (EFSA)",
-    "E621": "MSG - causes reactions in sensitive people (FSSAI)",
+    "E621": "MSG - causes reactions (FSSAI)",
     "partially hydrogenated oil": "Trans fat - banned by FDA",
     "potassium bromate": "Banned in EU and India (FSSAI+EFSA)",
-    "sudan red": "Illegal dye, toxic (FSSAI+EFSA)",
+    "sudan red": "Illegal dye (FSSAI+EFSA)",
     "rhodamine b": "Illegal synthetic dye (FSSAI)",
 }
 
-state = {
-    "step": 0,
-    "product_name": None,
-    "ingredients": [],
-    "done": False,
-    "task_id": "task_easy"
-}
+state = {"step": 0, "product_name": None, "ingredients": [], "done": False, "task_id": "food_check_easy"}
 
-# =========================
-# HELPERS
-# =========================
 def reset_state():
     state["step"] = 0
     state["product_name"] = None
@@ -103,6 +74,7 @@ def check_ingredients(ingredients: List[str]):
     return flagged
 
 def calculate_reward(flagged: list, task_id: str, ai_dangerous: bool) -> float:
+    # ALL values strictly between 0 and 1
     if task_id in ("task_easy", "food_check_easy"):
         if len(flagged) >= 1: return 0.7
         if ai_dangerous: return 0.6
@@ -113,21 +85,18 @@ def calculate_reward(flagged: list, task_id: str, ai_dangerous: bool) -> float:
         if len(flagged) >= 1: score += 0.2
         if len(flagged) >= 2: score += 0.1
         if ai_dangerous: score += 0.1
-        return min(score, 0.7)
+        return min(score, 0.69)
 
     elif task_id in ("task_hard", "food_check_hard"):
         score = 0.3
         if len(flagged) >= 1: score += 0.1
         if len(flagged) >= 2: score += 0.1
         if len(flagged) >= 3: score += 0.1
-        if ai_dangerous: score += 0.1
-        return min(score, 0.7)
+        if ai_dangerous: score += 0.09
+        return min(score, 0.69)
 
-    return 0.3                
+    return 0.3
 
-# =========================
-# ROUTES — app define hone ke BAAD
-# =========================
 @app.get("/")
 def home():
     return {"status": "Food Cop AI is running!", "model": MODEL_NAME}
@@ -141,15 +110,12 @@ def get_state():
     return state
 
 @app.post("/reset", response_model=ResetResponse)
-def reset(task_id: str = "task_easy"):
+def reset(task_id: str = "food_check_easy"):
     reset_state()
     state["task_id"] = task_id
     obs = Observation(
-        product_name="",
-        ingredients=[],
-        step=0,
-        verdict="RESET",
-        flagged_ingredients=[],
+        product_name="", ingredients=[], step=0,
+        verdict="RESET", flagged_ingredients=[],
         ai_analysis="Ready for inspection"
     )
     return ResetResponse(observation=obs, info={"task_id": task_id})
@@ -157,10 +123,10 @@ def reset(task_id: str = "task_easy"):
 @app.post("/step", response_model=StepResult)
 def step(action: FoodAction):
     state["step"] += 1
-    task_id = action.task_id or state.get("task_id", "task_easy")
+    task_id = action.task_id or state.get("task_id", "food_check_easy")
     flagged = check_ingredients(action.ingredients)
 
-    ai_response = "No AI analysis (proxy not configured)"
+    ai_response = "No AI analysis"
     ai_dangerous = False
 
     if client:
@@ -194,17 +160,10 @@ Give a clear explanation in 2-3 lines."""
         ai_analysis=ai_response
     )
 
-    return StepResult(
-        observation=obs,
-        reward=reward,
-        done=True,
-        info={"task_id": task_id}
-    )
+    return StepResult(observation=obs, reward=reward, done=True, info={"task_id": task_id})
 
-# =========================
-# MAIN — sabse neeche, sirf ek baar
-# =========================
 def main():
     uvicorn.run(app, host="0.0.0.0", port=7860)
+
 if __name__ == "__main__":
     main()
