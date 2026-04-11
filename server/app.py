@@ -93,39 +93,61 @@ def check_ingredients(ingredients: List[str]) -> List[str]:
                 break
     return flagged
 
-def calculate_reward(flagged: list, task_id: str, ai_dangerous: bool) -> float:
-    base_min, base_max = 0.35, 0.65
+def calculate_reward(flagged, task_id, ai_dangerous):
 
-    if task_id in ("task_easy", "food_check_easy"):
-        if len(flagged) >= 1:
-            return sanitize_score(0.64)
+    base = 0.42
+
+    # Always safe fallback (important for unseen tasks)
+    if task_id not in ("food_check_easy", "food_check_medium", "food_check_hard"):
+        return 0.50
+
+    severity = len(flagged)
+
+    # -------------------------
+    # EASY: binary clarity task
+    # -------------------------
+    if task_id == "food_check_easy":
+        if severity >= 1:
+            return 0.66
+        return 0.44
+
+    # -------------------------
+    # MEDIUM: graded detection
+    # -------------------------
+    if task_id == "food_check_medium":
+        score = base
+
+        if severity >= 1:
+            score += 0.10
+        if severity >= 2:
+            score += 0.07
+
         if ai_dangerous:
-            return sanitize_score(0.56)
-        return sanitize_score(0.41)
+            score += 0.05
 
-    if task_id in ("task_medium", "food_check_medium"):
-        score = 0.40
-        if len(flagged) >= 1:
+        # keep clean mid-range separation
+        return min(0.68, max(0.40, score))
+
+    # -------------------------
+    # HARD: multi-signal task
+    # -------------------------
+    if task_id == "food_check_hard":
+        score = 0.48  # higher baseline for difficulty
+
+        if severity >= 1:
+            score += 0.06
+        if severity >= 2:
+            score += 0.06
+        if severity >= 3:
             score += 0.08
-        if len(flagged) >= 2:
-            score += 0.07
-        if ai_dangerous:
-            score += 0.05
-        return sanitize_score(min(max(score, base_min), base_max))
 
-    if task_id in ("task_hard", "food_check_hard"):
-        score = 0.40
-        if len(flagged) >= 1:
-            score += 0.05
-        if len(flagged) >= 2:
-            score += 0.05
-        if len(flagged) >= 3:
-            score += 0.05
         if ai_dangerous:
-            score += 0.07
-        return sanitize_score(min(max(score, base_min), base_max))
+            score += 0.04
 
-    return sanitize_score(0.50)
+        # allow higher ceiling for hard
+        return min(0.72, max(0.50, score))
+
+    return 0.50
 
 @app.get("/")
 def home():
@@ -168,27 +190,34 @@ def step(action: FoodAction):
     ai_response = "No AI analysis"
     ai_dangerous = False
 
+    # SAFE LLM CALL (optional)
     if client is not None:
         try:
             prompt = f"""You are a strict Indian food safety expert using FSSAI and EFSA guidelines.
 Product: {action.product_name}
 Ingredients: {', '.join(action.ingredients)}
 Flagged by database: {flagged if flagged else 'None'}
-Analyze if this product is SAFE or UNSAFE. Start with YES if dangerous or NO if safe.
-Give a clear explanation in 2-3 lines."""
+Answer SAFE or DANGEROUS."""
 
             chat = client.chat.completions.create(
                 model=MODEL_NAME,
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=300,
+                max_tokens=200,
             )
+
             ai_response = chat.choices[0].message.content or "No AI analysis"
-            ai_dangerous = ai_response.strip().upper().startswith("YES")
+            ai_dangerous = ai_response.strip().upper().startswith("DANGEROUS")
+
         except Exception as e:
-            ai_response = f"AI analysis failed: {str(e)}"
+            ai_response = f"AI error: {str(e)}"
             ai_dangerous = False
 
-    reward = sanitize_score(calculate_reward(flagged, task_id, ai_dangerous))
+    # IMPORTANT: compute reward FIRST
+    raw_reward = calculate_reward(flagged, task_id, ai_dangerous)
+
+    # SAFE CLAMP LAST (NEVER BEFORE ASSIGNMENT)
+    reward = float(max(0.01, min(0.99, raw_reward)))
+
     verdict = "DANGEROUS" if (flagged or ai_dangerous) else "SAFE"
 
     obs = Observation(
@@ -199,8 +228,6 @@ Give a clear explanation in 2-3 lines."""
         flagged_ingredients=flagged,
         ai_analysis=ai_response,
     )
-
-    state["done"] = True
 
     return StepResult(
         observation=obs,
