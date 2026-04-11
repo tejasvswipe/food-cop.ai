@@ -2,19 +2,20 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import List, Optional
-from openai import OpenAI   # ✅ OpenAI client, not Groq
+from openai import OpenAI
 import os
 import uvicorn
 from dotenv import load_dotenv
-load_dotenv()
-# =========================
-# ENV SETUP — HF Secrets se aata hai
-# =========================
-API_BASE_URL = os.getenv("BASE_URL")          # hackathon proxy URL
-MODEL_NAME   = os.getenv("MODEL_NAME")
-HF_TOKEN     = os.getenv("OPENAI_API_KEY")              # hackathon proxy key
 
-# ✅ LiteLLM proxy through OpenAI client
+load_dotenv()
+
+# =========================
+# ENV SETUP
+# =========================
+API_BASE_URL = os.getenv("API_BASE_URL")
+MODEL_NAME   = os.getenv("MODEL_NAME", "llama3-8b-8192")
+HF_TOKEN     = os.getenv("HF_TOKEN")
+
 client = None
 if API_BASE_URL and HF_TOKEN:
     client = OpenAI(
@@ -23,13 +24,12 @@ if API_BASE_URL and HF_TOKEN:
     )
 
 # =========================
-# APP INIT — routes ke PEHLE
+# APP INIT — sirf ek baar
 # =========================
 app = FastAPI(
     title="Food Cop AI",
     description="Indian food safety inspector using FSSAI and EFSA rules",
-    version="1.0.0",
-    openapi_url="/openapi.json"
+    version="1.0.0"
 )
 
 # =========================
@@ -122,7 +122,7 @@ def calculate_reward(flagged: list, task_id: str, ai_dangerous: bool) -> float:
     return 0.0
 
 # =========================
-# ROUTES
+# ROUTES — app define hone ke BAAD
 # =========================
 @app.get("/")
 def home():
@@ -168,7 +168,6 @@ Flagged by database: {flagged if flagged else 'None'}
 Analyze if this product is SAFE or UNSAFE. Start with YES if dangerous or NO if safe.
 Give a clear explanation in 2-3 lines."""
 
-            # ✅ This call goes through hackathon's LiteLLM proxy
             chat = client.chat.completions.create(
                 model=MODEL_NAME,
                 messages=[{"role": "user", "content": prompt}],
@@ -199,7 +198,7 @@ Give a clear explanation in 2-3 lines."""
     )
 
 # =========================
-# ✅ MAIN — sabse neeche, ek baar
+# MAIN — sabse neeche, sirf ek baar
 # =========================
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=7860)
