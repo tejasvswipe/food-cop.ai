@@ -11,29 +11,44 @@ tags:
   - real-world
   - llm-agent
 
-
 tasks:
   - name: food_check_easy
     difficulty: easy
     description: Detect a single clearly banned ingredient (E128) in a candy bar.
-    reward_range: [0.2, 0.8]
 
   - name: food_check_medium
     difficulty: medium
     description: >
-      Detect sodium benzoate (E211) in an energy drink.
-    reward_range: [0.2, 0.8]
+      Detect sodium benzoate (E211) in an energy drink — dangerous when
+      combined with vitamin C forming benzene.
 
   - name: food_check_hard
     difficulty: hard
     description: >
-      Detect multiple dangerous additives in a processed snack.
-    reward_range: [0.2, 0.8]
+      Detect multiple dangerous additives (E621, E951, TBHQ, trans fats, E128)
+      in a processed snack across FSSAI and EFSA banned lists.
+
+observation_space:
+  type: object
+  fields:
+    - product_name: string
+    - ingredients: list[string]
+    - step: integer
+    - verdict: string
+    - flagged_ingredients: list[string]
+
+action_space:
+  type: object
+  fields:
+    - product_name: string
+    - ingredients: list[string]
 
 reward_function: >
-  0.8 for correctly identifying dangerous ingredients.
-  0.2 if agent misses dangerous ingredients.
-  - GET  /health   - Health check
-  - POST /reset    - Reset environment state
-  - POST /step     - Submit food product for analysis
-  - GET  /state    - Get current environment state
+  0.7 for correctly identifying dangerous ingredients.
+  0.3 if agent misses dangerous ingredients.
+
+endpoints:
+  - GET  /health
+  - POST /reset
+  - POST /step
+  - GET  /state
