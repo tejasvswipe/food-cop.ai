@@ -36,8 +36,8 @@ else:
 
 def wait_for_server(url: str, timeout: int = 60, interval: int = 3) -> None:
     print(f"[INIT] Waiting for server at {url}...")
-    deadline = time.time() + timeout
 
+    deadline = time.time() + timeout
     while time.time() < deadline:
         try:
             r = requests.get(url, timeout=5)
@@ -72,6 +72,7 @@ Give a clear explanation in 2-3 lines."""
             max_tokens=300,
         )
         return response.choices[0].message.content or "No AI response"
+
     except Exception as e:
         return f"AI failed: {str(e)}"
 
@@ -84,12 +85,14 @@ def run_task(task_name: str) -> None:
     print(f"[START] task={task_name} env=food_safety_env model={MODEL_NAME}")
 
     try:
+        # Reset environment
         reset_resp = requests.post(
             f"{BASE_URL}/reset?task_id={task_name}",
             timeout=15,
         )
         reset_resp.raise_for_status()
 
+        # Action
         payload = {
             "product_name": "Test Snack",
             "ingredients": ["wheat", "E128", "salt"],
@@ -102,6 +105,7 @@ def run_task(task_name: str) -> None:
             timeout=20,
         )
         response.raise_for_status()
+
         result = response.json()
         step_count += 1
 
@@ -109,38 +113,50 @@ def run_task(task_name: str) -> None:
         verdict = obs.get("verdict", "UNKNOWN")
         flagged = obs.get("flagged_ingredients", []) or []
 
+        # LLM call (optional)
         llm_reply = ask_llm(
             product_name=payload["product_name"],
             ingredients=payload["ingredients"],
             verdict=verdict,
             flagged=flagged,
         )
-        print(f"[LLM] {llm_reply[:100]}")
 
+        print(f"[LLM] {llm_reply[:120]}")
+
+        # IMPORTANT: use ENV reward only
         reward = clamp_reward(result.get("reward", 0.5))
         success = reward > 0.5
 
+        log_reward = f"{reward:.3f}"
+        rewards.append(log_reward)
+
         print(
             f"[STEP] step={step_count} action=analyze_food "
-            f"reward={reward:.2f} done=true error=null"
+            f"reward={log_reward} done=true error=null"
         )
 
     except Exception as e:
         reward = 0.40
-        rewards.append(f"{reward:.2f}")
+        log_reward = f"{reward:.3f}"
+        rewards.append(log_reward)
+
         print(
             f"[STEP] step={step_count} action=error "
-            f"reward={reward:.2f} done=true error={str(e)}"
+            f"reward={log_reward} done=true error={str(e)}"
         )
+
         print(f"[END] success=false steps={step_count} rewards={','.join(rewards)}")
         return
 
-    rewards.append(f"{reward:.2f}")
-    print(f"[END] success={str(success).lower()} steps={step_count} rewards={','.join(rewards)}")
+    print(
+        f"[END] success={str(success).lower()} "
+        f"steps={step_count} rewards={','.join(rewards)}"
+    )
 
 
 if __name__ == "__main__":
     wait_for_server(BASE_URL)
+
     run_task("food_check_easy")
     run_task("food_check_medium")
     run_task("food_check_hard")
