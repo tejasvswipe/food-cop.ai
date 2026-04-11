@@ -9,9 +9,9 @@ import uvicorn
 # =========================
 # ENV SETUP — HF Secrets se aata hai
 # =========================
-API_BASE_URL = os.getenv("GROQ_API_KEY")          # hackathon proxy URL
-MODEL_NAME   = os.getenv("MODEL_NAME", "gpt-4.1-mini")
-HF_TOKEN     = os.getenv("HF_TOKEN")              # hackathon proxy key
+API_BASE_URL = os.getenv("BASE_URL")          # hackathon proxy URL
+MODEL_NAME   = os.getenv("MODEL_NAME")
+HF_TOKEN     = os.getenv("GROQ_API_KEY")              # hackathon proxy key
 
 # ✅ LiteLLM proxy through OpenAI client
 client = None

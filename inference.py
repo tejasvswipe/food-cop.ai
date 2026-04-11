@@ -4,9 +4,9 @@ import requests
 from openai import OpenAI
 
 # ✅ Hackathon proxy — MUST use these
-API_BASE_URL = os.getenv("GROQ_API_KEY")          # hackathon proxy UR
-MODEL_NAME   = os.getenv("MODEL_NAME", "gpt-4.1-mini")
-HF_TOKEN     = os.getenv("HF_TOKEN")
+API_BASE_URL = os.getenv("BASE_URL")          # hackathon proxy URL
+MODEL_NAME   = os.getenv("MODEL_NAME")
+HF_TOKEN     = os.getenv("GROQ_API_KEY")              # hackathon proxy key
 
 if not API_BASE_URL:
     raise ValueError("API_BASE_URL is not set in HF Secrets")
