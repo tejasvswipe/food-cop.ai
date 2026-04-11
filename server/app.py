@@ -74,29 +74,40 @@ def check_ingredients(ingredients: List[str]):
     return flagged
 
 def calculate_reward(flagged: list, task_id: str, ai_dangerous: bool) -> float:
-    # ALL values strictly between 0 and 1
+    # All values strictly between 0 and 1 AND within [0.35, 0.65]
+    base_min, base_max = 0.35, 0.65
+
     if task_id in ("task_easy", "food_check_easy"):
-        if len(flagged) >= 1: return 0.7
-        if ai_dangerous: return 0.6
-        return 0.3
+        if len(flagged) >= 1:
+            return 0.65
+        if ai_dangerous:
+            return 0.55
+        return 0.40
 
     elif task_id in ("task_medium", "food_check_medium"):
-        score = 0.3
-        if len(flagged) >= 1: score += 0.2
-        if len(flagged) >= 2: score += 0.1
-        if ai_dangerous: score += 0.1
-        return min(score, 0.69)
+        score = 0.40
+        if len(flagged) >= 1:
+            score += 0.08      # 0.48
+        if len(flagged) >= 2:
+            score += 0.07      # 0.55
+        if ai_dangerous:
+            score += 0.05      # up to 0.60
+        return min(max(score, base_min), base_max)
 
     elif task_id in ("task_hard", "food_check_hard"):
-        score = 0.3
-        if len(flagged) >= 1: score += 0.1
-        if len(flagged) >= 2: score += 0.1
-        if len(flagged) >= 3: score += 0.1
-        if ai_dangerous: score += 0.09
-        return min(score, 0.69)
+        score = 0.40
+        if len(flagged) >= 1:
+            score += 0.05      # 0.45
+        if len(flagged) >= 2:
+            score += 0.05      # 0.50
+        if len(flagged) >= 3:
+            score += 0.05      # 0.55
+        if ai_dangerous:
+            score += 0.07      # up to 0.62
+        return min(max(score, base_min), base_max)
 
-    return 0.3
-
+    # Fallback: safe mid‑range value
+    return 0.50
 @app.get("/")
 def home():
     return {"status": "Food Cop AI is running!", "model": MODEL_NAME}

@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 API_BASE_URL = os.getenv("API_BASE_URL", "https://api.groq.com/openai/v1")
-MODEL_NAME   = os.getenv("MODEL_NAME", "llama-3.3-70b-versatile")
-HF_TOKEN     = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY") or os.getenv("GROQ_API_KEY")
+MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.3-70b-versatile")
+HF_TOKEN = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY") or os.getenv("GROQ_API_KEY")
 
 if not HF_TOKEN:
     print("[WARN] No API key found — ai calls will be skipped")
@@ -84,7 +84,7 @@ def run_task(task_name):
         result = response.json()
         step_count += 1
 
-        obs     = result.get("observation", {})
+        obs = result.get("observation", {})
         verdict = obs.get("verdict", "UNKNOWN")
         flagged = obs.get("flagged_ingredients", [])
 
@@ -100,16 +100,17 @@ def run_task(task_name):
             reward = 0.65
             success = True
         else:
-            reward = 0.35
+            reward = 0.40
 
         rewards.append(f"{reward:.2f}")
         print(f"[STEP] step={step_count} action=analyze_food reward={reward:.2f} done=true error=null")
 
     except Exception as e:
-        rewards.append("0.3")
-        print(f"[STEP] step={step_count} action=error reward=0.3 done=true error={str(e)}")
+        reward = 0.40
+        rewards.append(f"{reward:.2f}")
+        print(f"[STEP] step={step_count} action=error reward={reward:.2f} done=true error={str(e)}")
 
-    rewards_str = ",".join(rewards) if rewards else "0.3"
+    rewards_str = ",".join(rewards) if rewards else "0.40"
     print(f"[END] success={str(success).lower()} steps={step_count} rewards={rewards_str}")
 
 
