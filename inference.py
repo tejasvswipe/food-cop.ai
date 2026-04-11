@@ -17,7 +17,7 @@ def clamp_reward(x: float) -> float:
         x = float(x)
     except Exception:
         x = 0.5
-    return min(0.999, max(0.001, x))
+    return min(0.94, max(0.05, x))
 
 
 if not HF_TOKEN:
