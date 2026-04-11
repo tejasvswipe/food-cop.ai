@@ -3,21 +3,28 @@ import time
 import requests
 from openai import OpenAI
 from dotenv import load_dotenv
+
 load_dotenv()
 
-# ✅ Hackathon proxy — MUST use these
+# ✅ Hackathon environment variables
+API_BASE_URL = os.getenv("API_BASE_URL", "https://api.groq.com/openai/v1")
+MODEL_NAME   = os.getenv("MODEL_NAME", "llama3-8b-8192")
+HF_TOKEN     = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY") or os.getenv("GROQ_API_KEY")
 
-API_BASE_URL = os.getenv("BASE_URL")          # hackathon proxy URL
-MODEL_NAME   = os.getenv("MODEL_NAME")
-HF_TOKEN     = os.getenv("OPENAI_API_KEY")              # hackathon proxy key
+# ✅ Crash nahi karega agar key missing hai
+if not HF_TOKEN:
+    print("[WARN] No API key found — ai calls will be skipped")
 
-# ✅ Route through THEIR proxy
-client = OpenAI(
-    base_url=API_BASE_URL,
-    api_key=HF_TOKEN
-)
+try:
+    client = OpenAI(
+        base_url=API_BASE_URL,
+        api_key=HF_TOKEN or "dummy-key"  # ✅ dummy so it doesn't crash
+    )
+except Exception as e:
+    print(f"[WARN] Client init failed: {e}")
+    client = None
 
-BASE_URL = os.getenv("BASE_URL")  # For direct API calls to the environment
+BASE_URL = os.getenv("ENV_URL", "http://localhost:7860")
 
 
 def wait_for_server(url, timeout=60, interval=3):
@@ -31,25 +38,31 @@ def wait_for_server(url, timeout=60, interval=3):
                 return
         except requests.exceptions.ConnectionError:
             pass
+        except Exception as e:
+            print(f"[INIT] Check error: {e}")
         time.sleep(interval)
     raise RuntimeError(f"Server at {url} not ready after {timeout}s")
 
 
 def ask_llm(product_name, ingredients, verdict, flagged):
-    prompt = f"""You are a strict Indian food safety expert using FSSAI and EFSA guidelines.
+    if not client:
+        return "AI skipped — no client"
+    try:
+        prompt = f"""You are a strict Indian food safety expert using FSSAI and EFSA guidelines.
 Product: {product_name}
 Ingredients: {', '.join(ingredients)}
 Flagged by database: {flagged if flagged else 'None'}
 Analyze if this product is SAFE or UNSAFE. Start with YES if dangerous or NO if safe.
 Give a clear explanation in 2-3 lines."""
 
-    # ✅ This is the call hackathon proxy will log
-    response = client.chat.completions.create(
-        model=MODEL_NAME,
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=300
-    )
-    return response.choices[0].message.content
+        response = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=300
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"AI failed: {str(e)}"
 
 
 def run_task(task_name):
@@ -77,7 +90,6 @@ def run_task(task_name):
         verdict = obs.get("verdict", "UNKNOWN")
         flagged = obs.get("flagged_ingredients", [])
 
-        # ✅ Mandatory LLM call through proxy
         llm_reply = ask_llm(
             product_name=payload["product_name"],
             ingredients=payload["ingredients"],
@@ -86,7 +98,7 @@ def run_task(task_name):
         )
         print(f"[LLM] {llm_reply[:100]}")
 
-        if "DANGEROUS" in verdict or llm_reply.upper().startswith("YES"):
+        if "DANGEROUS" in verdict or (llm_reply and llm_reply.upper().startswith("YES")):
             reward = 1.0
             success = True
         else:
