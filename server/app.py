@@ -6,12 +6,13 @@ from openai import OpenAI
 import os
 import uvicorn
 from dotenv import load_dotenv
+from dotenv import load_dotenv
+from pathlib import Path
 
-load_dotenv()
+# ✅ Root folder ka .env dhundega chahe server/ se run ho
+load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
 
-# =========================
-# ENV SETUP
-# =========================
+
 API_BASE_URL = os.getenv("API_BASE_URL")
 MODEL_NAME   = os.getenv("MODEL_NAME", "llama3-8b-8192")
 HF_TOKEN     = os.getenv("HF_TOKEN")
