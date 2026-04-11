@@ -5,9 +5,9 @@ from __future__ import annotations
 import math
 from typing import List
 
-# Keep strictly inside (0, 1) for Phase 2 validators and float edge cases.
-REWARD_MIN = 1e-4
-REWARD_MAX = 1.0 - 1e-4
+# Strictly inside (0, 1); margin avoids float edge cases vs 0.0 / 1.0 checks.
+REWARD_MIN = 0.001
+REWARD_MAX = 0.999
 
 BANNED_INGREDIENTS = {
     "E128": "Red 2G - banned food dye (FSSAI+EFSA)",
