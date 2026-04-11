@@ -1,9 +1,9 @@
 name: food_cop_ai
-version: 1.0.0
+version: 1.0.1
 description: >
   Food Cop AI is a real-world food safety inspection environment.
   An LLM agent analyzes product ingredient lists to detect banned,
-  harmful, or dangerous additives based on FSSAI and EFSA regulations.
+  harmful, or dangerous additives using food safety rules.
 
 tags:
   - openenv
@@ -15,35 +15,37 @@ tasks:
   - name: food_check_easy
     difficulty: easy
     description: Detect a single clearly banned ingredient in a product.
-    reward_range: [0.35, 0.65]
+    reward_range: [0.01, 0.99]
 
   - name: food_check_medium
     difficulty: medium
     description: Detect dangerous additives in a drink.
-    reward_range: [0.35, 0.65]
+    reward_range: [0.01, 0.99]
 
   - name: food_check_hard
     difficulty: hard
     description: Detect multiple dangerous additives in a snack.
-    reward_range: [0.35, 0.65]
-    
+    reward_range: [0.01, 0.99]
+
 observation_space:
   type: object
   fields:
-    - product_name: string
-    - ingredients: list[string]
-    - step: integer
-    - verdict: string
-    - flagged_ingredients: list[string]
+    product_name: string
+    ingredients: list[string]
+    step: integer
+    verdict: string
+    flagged_ingredients: list[string]
+    ai_analysis: string
 
 action_space:
   type: object
   fields:
-    - product_name: string
-    - ingredients: list[string]
+    product_name: string
+    ingredients: list[string]
+    task_id: string
 
 endpoints:
-  - GET  /health
+  - GET /health
   - POST /reset
   - POST /step
-  - GET  /state
+  - GET /state
