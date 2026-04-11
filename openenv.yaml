@@ -15,15 +15,18 @@ tasks:
   - name: food_check_easy
     difficulty: easy
     description: Detect a single clearly banned ingredient in a product.
+    reward_range: [0.35, 0.65]
 
   - name: food_check_medium
     difficulty: medium
-    description: Detect sodium benzoate in an energy drink.
+    description: Detect dangerous additives in a drink.
+    reward_range: [0.35, 0.65]
 
   - name: food_check_hard
     difficulty: hard
-    description: Detect multiple dangerous additives in a processed snack.
-
+    description: Detect multiple dangerous additives in a snack.
+    reward_range: [0.35, 0.65]
+    
 observation_space:
   type: object
   fields:
