@@ -1,6 +1,27 @@
 (function () {
   const $ = (id) => document.getElementById(id);
 
+  /**
+   * Hugging Face Spaces (and other reverse proxies) serve the app under a path like
+   * /spaces/user/repo — fetch("/step") would hit the site root and fail. Strip the /ui
+   * segment from the current path to get the API base.
+   */
+  function apiBase() {
+    const p = (window.location.pathname || "/").replace(/\/+$/, "") || "/";
+    if (p === "/ui" || p.endsWith("/ui")) {
+      const b = p.slice(0, -3);
+      return b === "" ? "" : b;
+    }
+    const m = p.match(/^(.*)\/ui(\/|$)/);
+    return m ? m[1] : "";
+  }
+
+  function apiUrl(path) {
+    const base = apiBase();
+    const suffix = path.startsWith("/") ? path : "/" + path;
+    return base ? base + suffix : suffix;
+  }
+
   const productInput = $("product-name");
   const ingredientsInput = $("ingredients");
   const taskSelect = $("task-id");
@@ -132,14 +153,14 @@
 
     try {
       const resetRes = await fetch(
-        "/reset?task_id=" + encodeURIComponent(task_id),
+        apiUrl("/reset?task_id=" + encodeURIComponent(task_id)),
         { method: "POST" }
       );
       if (!resetRes.ok) {
         throw new Error("Reset failed: " + resetRes.status);
       }
 
-      const stepRes = await fetch("/step", {
+      const stepRes = await fetch(apiUrl("/step"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
