@@ -97,10 +97,10 @@ def run_task(task_name):
         print(f"[LLM] {llm_reply[:100]}")
 
         if "DANGEROUS" in verdict or (llm_reply and llm_reply.upper().startswith("YES")):
-            reward = 0.7
+            reward = 0.65
             success = True
         else:
-            reward = 0.3
+            reward = 0.35
 
         rewards.append(f"{reward:.2f}")
         print(f"[STEP] step={step_count} action=analyze_food reward={reward:.2f} done=true error=null")
