@@ -103,27 +103,27 @@ def check_ingredients(ingredients: List[str]):
     return flagged
 
 def calculate_reward(flagged: list, task_id: str, ai_dangerous: bool) -> float:
-    if task_id == "task_easy":
-        if len(flagged) >= 1: return 0.9      # ← 1.0 nahi
-        if ai_dangerous: return 0.7
-        return 0.2                              # ← 0.0 nahi
+    if task_id in ("task_easy", "food_check_easy"):
+        if len(flagged) >= 1: return 0.8
+        if ai_dangerous: return 0.6
+        return 0.2
 
-    elif task_id == "task_medium":
-        score = 0.1                             # ← 0.0 nahi
-        if len(flagged) >= 1: score += 0.4
+    elif task_id in ("task_medium", "food_check_medium"):
+        score = 0.2
+        if len(flagged) >= 1: score += 0.3
         if len(flagged) >= 2: score += 0.2
         if ai_dangerous: score += 0.1
-        return min(score, 0.9)                  # ← 1.0 nahi
+        return min(score, 0.8)
 
-    elif task_id == "task_hard":
-        score = 0.1                            # ← 0.0 nahi
-        if len(flagged) >= 1: score += 0.3
-        if len(flagged) >= 2: score += 0.3
-        if len(flagged) >= 3: score += 0.2
-        if ai_dangerous: score += 0.25
-        return min(score, 0.9)                  # ← 1.0 nahi
+    elif task_id in ("task_hard", "food_check_hard"):
+        score = 0.2
+        if len(flagged) >= 1: score += 0.2
+        if len(flagged) >= 2: score += 0.2
+        if len(flagged) >= 3: score += 0.1
+        if ai_dangerous: score += 0.1
+        return min(score, 0.8)
 
-    return 0.1                              # ← 0.0 nahi
+    return 0.2                     
 
 # =========================
 # ROUTES — app define hone ke BAAD

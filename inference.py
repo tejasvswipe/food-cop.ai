@@ -96,25 +96,25 @@ def run_task(task_name):
         )
         print(f"[LLM] {llm_reply[:100]}")
 
-        # ✅ Reward strictly between 0 and 1
         if "DANGEROUS" in verdict or (llm_reply and llm_reply.upper().startswith("YES")):
-            reward = 0.9
+            reward = 0.8
             success = True
         else:
-            reward = 0.5
+            reward = 0.2
 
         rewards.append(f"{reward:.2f}")
         print(f"[STEP] step={step_count} action=analyze_food reward={reward:.2f} done=true error=null")
 
     except Exception as e:
-        rewards.append("0.1")  # ✅ ADD THIS
-        print(f"[STEP] step={step_count} action=error reward=0.1 done=true error={str(e)}")  # 0.00 → 0.1
+        rewards.append("0.2")
+        print(f"[STEP] step={step_count} action=error reward=0.2 done=true error={str(e)}")
 
-    rewards_str = ",".join(rewards) if rewards else "0.1"  # 0.00 → 0.1
+    rewards_str = ",".join(rewards) if rewards else "0.2"
     print(f"[END] success={str(success).lower()} steps={step_count} rewards={rewards_str}")
+
 
 if __name__ == "__main__":
     wait_for_server(BASE_URL)
-    run_task("task_easy")
-    run_task("task_medium")
-    run_task("task_hard")
+    run_task("food_check_easy")
+    run_task("food_check_medium")
+    run_task("food_check_hard")
