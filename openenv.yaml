@@ -14,19 +14,15 @@ tags:
 tasks:
   - name: food_check_easy
     difficulty: easy
-    description: Detect a single clearly banned ingredient (E128) in a candy bar.
+    description: Detect a single clearly banned ingredient in a product.
 
   - name: food_check_medium
     difficulty: medium
-    description: >
-      Detect sodium benzoate (E211) in an energy drink — dangerous when
-      combined with vitamin C forming benzene.
+    description: Detect sodium benzoate in an energy drink.
 
   - name: food_check_hard
     difficulty: hard
-    description: >
-      Detect multiple dangerous additives (E621, E951, TBHQ, trans fats, E128)
-      in a processed snack across FSSAI and EFSA banned lists.
+    description: Detect multiple dangerous additives in a processed snack.
 
 observation_space:
   type: object
@@ -42,10 +38,6 @@ action_space:
   fields:
     - product_name: string
     - ingredients: list[string]
-
-reward_function: >
-  0.7 for correctly identifying dangerous ingredients.
-  0.3 if agent misses dangerous ingredients.
 
 endpoints:
   - GET  /health
