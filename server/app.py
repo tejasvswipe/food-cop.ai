@@ -5,7 +5,8 @@ from typing import List, Optional
 from openai import OpenAI   # ✅ OpenAI client, not Groq
 import os
 import uvicorn
-
+from dotenv import load_dotenv
+load_dotenv()
 # =========================
 # ENV SETUP — HF Secrets se aata hai
 # =========================

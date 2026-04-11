@@ -2,8 +2,11 @@ import os
 import time
 import requests
 from openai import OpenAI
+from dotenv import load_dotenv
+load_dotenv()
 
 # ✅ Hackathon proxy — MUST use these
+
 API_BASE_URL = os.getenv("BASE_URL")          # hackathon proxy URL
 MODEL_NAME   = os.getenv("MODEL_NAME")
 HF_TOKEN     = os.getenv("OPENAI_API_KEY")              # hackathon proxy key
@@ -14,7 +17,7 @@ client = OpenAI(
     api_key=HF_TOKEN
 )
 
-BASE_URL = os.getenv("ENV_URL", "http://localhost:7860")
+BASE_URL = os.getenv("BASE_URL")  # For direct API calls to the environment
 
 
 def wait_for_server(url, timeout=60, interval=3):
