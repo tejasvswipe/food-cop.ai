@@ -1,5 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
@@ -80,12 +81,25 @@ def reset_state():
     state["task_id"] = DEFAULT_TASK_ID
 
 @app.get("/")
-def home():
-    return {
-        "status": "Food Cop AI is running!",
-        "model": MODEL_NAME,
-        "ui": "/ui/",
-    }
+def home(request: Request):
+    """
+    Browsers opening the Space URL hit GET / — without this they only see JSON.
+    Real navigations send Sec-Fetch-Mode: navigate; API clients/curl usually do not,
+    so they still get JSON for hackathon checks.
+    """
+    if request.headers.get("sec-fetch-mode") == "navigate":
+        prefix = request.url.path.rstrip("/")
+        target = f"{prefix}/ui/" if prefix else "/ui/"
+        return RedirectResponse(url=target, status_code=302)
+
+    return JSONResponse(
+        {
+            "status": "Food Cop AI is running!",
+            "model": MODEL_NAME,
+            "ui": "/ui/",
+            "hint": "Open /ui/ in the browser for the Food Cop web UI (CSS is under /ui/).",
+        }
+    )
 
 @app.get("/health")
 def health():
