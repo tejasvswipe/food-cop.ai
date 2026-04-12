@@ -1,5 +1,10 @@
+spec_version: 1
 name: food_cop_ai
-version: 1.0.4
+type: space
+runtime: fastapi
+app: server.app:app
+port: 7860
+version: "1.0.5"
 description: >
   Food Cop AI is a real-world food safety inspection environment.
   An LLM agent analyzes product ingredient lists to detect banned,
@@ -17,21 +22,24 @@ tasks:
     grader: server.graders.easy_grader.grade
     difficulty: easy
     description: Detect a single clearly banned ingredient in a product.
-    reward_range: [0.05, 0.94]
+    max_steps: 4
+    score_range: [0.05, 0.94]
 
   - id: food_check_medium
     name: food_check_medium
     grader: server.graders.medium_grader.grade
     difficulty: medium
     description: Detect dangerous additives in a drink.
-    reward_range: [0.05, 0.94]
+    max_steps: 4
+    score_range: [0.05, 0.94]
 
   - id: food_check_hard
     name: food_check_hard
     grader: server.graders.hard_grader.grade
     difficulty: hard
     description: Detect multiple dangerous additives in a snack.
-    reward_range: [0.05, 0.94]
+    max_steps: 4
+    score_range: [0.05, 0.94]
 
 observation_space:
   type: object

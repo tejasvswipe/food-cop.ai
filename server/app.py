@@ -21,7 +21,7 @@ client = None
 if API_BASE_URL and HF_TOKEN:
     client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
 
-app = FastAPI(title="Food Cop AI", version="1.0.4")
+app = FastAPI(title="Food Cop AI", version="1.0.5")
 
 app.add_middleware(
     CORSMiddleware,

@@ -81,18 +81,17 @@ def run_task(task_name: str) -> None:
     rewards = []
     step_count = 0
     success = False
+    episode_score = clamp_reward(0.5)
 
     print(f"[START] task={task_name} env=food_safety_env model={MODEL_NAME}")
 
     try:
-        # Reset environment
         reset_resp = requests.post(
             f"{BASE_URL}/reset?task_id={task_name}",
             timeout=15,
         )
         reset_resp.raise_for_status()
 
-        # Action
         payload = {
             "product_name": "Test Snack",
             "ingredients": ["wheat", "E128", "salt"],
@@ -113,7 +112,6 @@ def run_task(task_name: str) -> None:
         verdict = obs.get("verdict", "UNKNOWN")
         flagged = obs.get("flagged_ingredients", []) or []
 
-        # LLM call (optional)
         llm_reply = ask_llm(
             product_name=payload["product_name"],
             ingredients=payload["ingredients"],
@@ -123,11 +121,10 @@ def run_task(task_name: str) -> None:
 
         print(f"[LLM] {llm_reply[:120]}")
 
-        # IMPORTANT: use ENV reward only
-        reward = clamp_reward(result.get("reward", 0.5))
-        success = reward > 0.5
+        episode_score = clamp_reward(result.get("reward", 0.5))
+        success = episode_score > 0.5
 
-        log_reward = f"{reward:.3f}"
+        log_reward = f"{episode_score:.3f}"
         rewards.append(log_reward)
 
         print(
@@ -136,8 +133,8 @@ def run_task(task_name: str) -> None:
         )
 
     except Exception as e:
-        reward = 0.40
-        log_reward = f"{reward:.3f}"
+        episode_score = clamp_reward(0.35)
+        log_reward = f"{episode_score:.3f}"
         rewards.append(log_reward)
 
         print(
@@ -145,12 +142,15 @@ def run_task(task_name: str) -> None:
             f"reward={log_reward} done=true error={str(e)}"
         )
 
-        print(f"[END] success=false steps={step_count} rewards={','.join(rewards)}")
+        print(
+            f"[END] success=false steps={step_count} score={episode_score:.4f} "
+            f"rewards={','.join(rewards)}"
+        )
         return
 
     print(
-        f"[END] success={str(success).lower()} "
-        f"steps={step_count} rewards={','.join(rewards)}"
+        f"[END] success={str(success).lower()} steps={step_count} "
+        f"score={episode_score:.4f} rewards={','.join(rewards)}"
     )
 
 
